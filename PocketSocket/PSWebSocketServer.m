@@ -241,7 +241,11 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 #pragma mark - Accepting
 
 - (void)accept:(CFSocketNativeHandle)handle {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
         // create streams
         CFReadStreamRef readStream = nil;
         CFWriteStreamRef writeStream = nil;
@@ -257,11 +261,11 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         CFWriteStreamSetProperty(writeStream, kCFStreamPropertyShouldCloseNativeSocket, kCFBooleanTrue);
         
         // enable SSL
-        if(_secure) {
+        if(strongSelf->_secure) {
             NSMutableDictionary *opts = [NSMutableDictionary dictionary];
             
             opts[(__bridge id)kCFStreamSSLIsServer] = @YES;
-            opts[(__bridge id)kCFStreamSSLCertificates] = _SSLCertificates;
+            opts[(__bridge id)kCFStreamSSLCertificates] = strongSelf->_SSLCertificates;
             opts[(__bridge id)kCFStreamSSLValidatesCertificateChain] = @NO; // i.e. client certs
             
             CFReadStreamSetProperty(readStream, kCFStreamPropertySSLSettings, (__bridge CFDictionaryRef)opts);
@@ -278,7 +282,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         connection.outputStream = CFBridgingRelease(writeStream);
         
         // attach connection
-        [self attachConnection:connection];
+        [strongSelf attachConnection:connection];
         
         // open
         [connection.inputStream open];
@@ -526,7 +530,13 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 #pragma mark - NSStreamDelegate
 
 - (void)stream:(NSStream *)stream handleEvent:(NSStreamEvent)event {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
+        [weakSelf syncStream:stream handleEvent:event];
+    }];
+}
+
+- (void)syncStream:(NSStream *)stream handleEvent:(NSStreamEvent)event {
         if(stream.delegate != self) {
             [stream.delegate stream:stream handleEvent:event];
             return;
@@ -574,59 +584,94 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
             default:
                 break;
         }
-    }];
 }
 
 #pragma mark - Delegation
 
 - (void)notifyDelegateDidStart {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate serverDidStart:self];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate serverDidStart:strongSelf];
     }];
 }
 - (void)notifyDelegateFailedToStart:(NSError *)error {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate server:self didFailWithError:error];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate server:strongSelf didFailWithError:error];
     }];
 }
 - (void)notifyDelegateDidStop {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate serverDidStop:self];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate serverDidStop:strongSelf];
     }];
 }
 
 - (void)notifyDelegateWebSocketDidOpen:(PSWebSocket *)webSocket {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate server:self webSocketDidOpen:webSocket];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate server:strongSelf webSocketDidOpen:webSocket];
     }];
 }
 - (void)notifyDelegateWebSocket:(PSWebSocket *)webSocket didReceiveMessage:(id)message {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate server:self webSocket:webSocket didReceiveMessage:message];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate server:strongSelf webSocket:webSocket didReceiveMessage:message];
     }];
 }
 
 - (void)notifyDelegateWebSocket:(PSWebSocket *)webSocket didFailWithError:(NSError *)error {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate server:self webSocket:webSocket didFailWithError:error];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate server:strongSelf webSocket:webSocket didFailWithError:error];
     }];
 }
 - (void)notifyDelegateWebSocket:(PSWebSocket *)webSocket didCloseWithCode:(NSInteger)code reason:(NSString *)reason wasClean:(BOOL)wasClean {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate server:self webSocket:webSocket didCloseWithCode:code reason:reason wasClean:wasClean];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate server:strongSelf webSocket:webSocket didCloseWithCode:code reason:reason wasClean:wasClean];
     }];
 }
 - (void)notifyDelegateWebSocketDidFlushInput:(PSWebSocket *)webSocket {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        if ([_delegate respondsToSelector: @selector(server:webSocketDidFlushInput:)]) {
-            [_delegate server:self webSocketDidFlushInput:webSocket];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if ([strongSelf->_delegate respondsToSelector:@selector(server:webSocketDidFlushInput:)]) {
+            [strongSelf->_delegate server:strongSelf webSocketDidFlushInput:webSocket];
         };
     }];
 }
 - (void)notifyDelegateWebSocketDidFlushOutput:(PSWebSocket *)webSocket {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        if ([_delegate respondsToSelector: @selector(server:webSocketDidFlushOutput:)]) {
-            [_delegate server:self webSocketDidFlushOutput:webSocket];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if ([strongSelf->_delegate respondsToSelector:@selector(server:webSocketDidFlushOutput:)]) {
+            [strongSelf->_delegate server:strongSelf webSocketDidFlushOutput:webSocket];
         }
     }];
 }
@@ -636,12 +681,12 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
     __block BOOL accept;
     __block NSHTTPURLResponse* response = nil;
     [self executeDelegateAndWait:^{
-        if([_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:address:trust:response:)]) {
+        if([self->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:address:trust:response:)]) {
             NSData* address = PSPeerAddressOfInputStream(connection.inputStream);
             SecTrustRef trust = (SecTrustRef)CFReadStreamCopyProperty(
                                                   (__bridge CFReadStreamRef)connection.inputStream,
                                                   kCFStreamPropertySSLPeerTrust);
-            accept = [_delegate server:self
+            accept = [self->_delegate server:self
             acceptWebSocketWithRequest:request
                                address:address
                                  trust:trust
@@ -649,8 +694,8 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
             if(trust) {
                 CFRelease(trust);
             }
-        } else if([_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:)]) {
-            accept = [_delegate server:self acceptWebSocketWithRequest:request];
+        } else if([self->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:)]) {
+            accept = [self->_delegate server:self acceptWebSocketWithRequest:request];
         } else {
             accept = YES;
         }

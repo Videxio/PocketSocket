@@ -58,7 +58,7 @@
 - (PSWebSocketReadyState)readyState {
     __block PSWebSocketReadyState value = 0;
     [self executeWorkAndWait:^{
-        value = _readyState;
+        value = self->_readyState;
     }];
     return value;
 }
@@ -76,14 +76,14 @@
 - (BOOL)isInputPaused {
     __block BOOL result;
     [self executeWorkAndWait:^{
-        result = _inputPaused;
+        result = self->_inputPaused;
     }];
     return result;
 }
 - (void)setInputPaused:(BOOL)inputPaused {
     [self executeWorkAndWait:^{
-        if (inputPaused != _inputPaused) {
-            _inputPaused = inputPaused;
+        if (inputPaused != self->_inputPaused) {
+            self->_inputPaused = inputPaused;
             if (!inputPaused) {
                 [self pumpInput];
             }
@@ -94,14 +94,14 @@
 - (BOOL)isOutputPaused {
     __block BOOL result;
     [self executeWorkAndWait:^{
-        result = _outputPaused;
+        result = self->_outputPaused;
     }];
     return result;
 }
 - (void)setOutputPaused:(BOOL)outputPaused {
     [self executeWorkAndWait:^{
-        if (outputPaused != _outputPaused) {
-            _outputPaused = outputPaused;
+        if (outputPaused != self->_outputPaused) {
+            self->_outputPaused = outputPaused;
             if (!outputPaused) {
                 [self pumpOutput];
             }
@@ -213,76 +213,91 @@
 #pragma mark - Actions
 
 - (void)open {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
-        if(_opened || _readyState != PSWebSocketReadyStateConnecting) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if(strongSelf->_opened || strongSelf->_readyState != PSWebSocketReadyStateConnecting) {
             [NSException raise:@"Invalid State" format:@"You cannot open a PSWebSocket more than once."];
             return;
         }
         
-        _opened = YES;
+        strongSelf->_opened = YES;
         
         // connect
-        [self connect];
+        [strongSelf connect];
     }];
 }
 - (void)send:(id)message {
     NSParameterAssert(message);
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
-        if(!_opened || _readyState == PSWebSocketReadyStateConnecting) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if(!strongSelf->_opened || strongSelf->_readyState == PSWebSocketReadyStateConnecting) {
             [NSException raise:@"Invalid State" format:@"You cannot send a PSWebSocket messages before it is finished opening."];
             return;
         }
         
         if([message isKindOfClass:[NSString class]]) {
-            [_driver sendText:message];
+            [strongSelf->_driver sendText:message];
         } else if([message isKindOfClass:[NSData class]]) {
-            [_driver sendBinary:message];
+            [strongSelf->_driver sendBinary:message];
         } else {
             [NSException raise:@"Invalid Message" format:@"Messages must be instances of NSString or NSData"];
         }
     }];
 }
 - (void)ping:(NSData *)pingData handler:(void (^)(NSData *pongData))handler {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
         if(handler) {
-            [_pingHandlers addObject:handler];
+            [strongSelf->_pingHandlers addObject:handler];
         }
-        [_driver sendPing:pingData];
+        [strongSelf->_driver sendPing:pingData];
     }];
 }
 - (void)close {
     [self closeWithCode:1000 reason:nil];
 }
 - (void)closeWithCode:(NSInteger)code reason:(NSString *)reason {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
         // already closing so lets exit
-        if(_readyState >= PSWebSocketReadyStateClosing) {
+        if(strongSelf->_readyState >= PSWebSocketReadyStateClosing) {
             return;
         }
         
-        BOOL connecting = (_readyState == PSWebSocketReadyStateConnecting);
-        _readyState = PSWebSocketReadyStateClosing;
+        BOOL connecting = (strongSelf->_readyState == PSWebSocketReadyStateConnecting);
+        strongSelf->_readyState = PSWebSocketReadyStateClosing;
         
         // send close code if we're not connecting
         if(!connecting) {
-            _closeCode = code;
-            [_driver sendCloseCode:code reason:reason];
+            strongSelf->_closeCode = code;
+            [strongSelf->_driver sendCloseCode:code reason:reason];
         }
         
         // disconnect gracefully
-        [self disconnectGracefully];
+        [strongSelf disconnectGracefully];
         
         // disconnect hard in 30 seconds
-        __weak typeof(self)weakSelf = self;
         dispatch_after(dispatch_walltime(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-            __strong typeof(weakSelf)strongSelf = weakSelf;
-            if(!strongSelf) return;
-            
-            [strongSelf executeWork:^{
-                if(strongSelf->_readyState >= PSWebSocketReadyStateClosed) {
+            [weakSelf executeWork:^{
+                __strong typeof(weakSelf) strongSelf2 = weakSelf;
+                if (strongSelf2 == nil) return;
+
+                if(strongSelf2->_readyState >= PSWebSocketReadyStateClosed) {
                     return;
                 }
-                [strongSelf disconnect];
+                [strongSelf2 disconnect];
             }];
         });
     }];
@@ -293,17 +308,17 @@
 - (CFTypeRef)copyStreamPropertyForKey:(NSString *)key {
     __block CFTypeRef result;
     [self executeWorkAndWait:^{
-        result = CFWriteStreamCopyProperty((__bridge CFWriteStreamRef)_outputStream, (__bridge CFStringRef)key);
+        result = CFWriteStreamCopyProperty((__bridge CFWriteStreamRef)self->_outputStream, (__bridge CFStringRef)key);
     }];
     return result;
 }
 - (void)setStreamProperty:(CFTypeRef)property forKey:(NSString *)key {
     [self executeWorkAndWait:^{
-        if(_opened || _readyState != PSWebSocketReadyStateConnecting) {
+        if(self->_opened || self->_readyState != PSWebSocketReadyStateConnecting) {
             [NSException raise:@"Invalid State" format:@"You cannot set stream properties on a PSWebSocket once it is opened."];
             return;
         }
-        CFWriteStreamSetProperty((__bridge CFWriteStreamRef)_outputStream, (__bridge CFStringRef)key, (CFTypeRef)property);
+        CFWriteStreamSetProperty((__bridge CFWriteStreamRef)self->_outputStream, (__bridge CFStringRef)key, (CFTypeRef)property);
     }];
 }
 
@@ -314,7 +329,7 @@
         
         __block BOOL customTrustEvaluation = NO;
         [self executeDelegateAndWait:^{
-            customTrustEvaluation = [_delegate respondsToSelector:@selector(webSocket:evaluateServerTrust:)];
+            customTrustEvaluation = [self->_delegate respondsToSelector:@selector(webSocket:evaluateServerTrust:)];
         }];
         
         NSMutableDictionary *ssl = [NSMutableDictionary dictionary];
@@ -501,22 +516,29 @@
     [self failWithError:[PSWebSocketDriver errorWithCode:code reason:reason]];
 }
 - (void)failWithError:(NSError *)error {
+    __weak typeof(self) weakSelf = self;
     if(error.code == PSWebSocketStatusCodeProtocolError && [error.domain isEqualToString:PSWebSocketErrorDomain]) {
         [self executeDelegate:^{
-            _closeCode = error.code;
-            _closeReason = error.localizedDescription;
-            [self closeWithCode:_closeCode reason:_closeReason];
-            [self executeWork:^{
-                [self disconnectGracefully];
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (strongSelf == nil) return;
+
+            strongSelf->_closeCode = error.code;
+            strongSelf->_closeReason = error.localizedDescription;
+            [strongSelf closeWithCode:strongSelf->_closeCode reason:strongSelf->_closeReason];
+            [strongSelf executeWork:^{
+                [weakSelf disconnectGracefully];
             }];
         }];
     } else {
         [self executeWork:^{
-            if(_readyState != PSWebSocketReadyStateClosed) {
-                _failed = YES;
-                _readyState = PSWebSocketReadyStateClosed;
-                [self notifyDelegateDidFailWithError:error];
-                [self disconnectGracefully];
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (strongSelf == nil) return;
+
+            if(strongSelf->_readyState != PSWebSocketReadyStateClosed) {
+                strongSelf->_failed = YES;
+                strongSelf->_readyState = PSWebSocketReadyStateClosed;
+                [strongSelf notifyDelegateDidFailWithError:error];
+                [strongSelf disconnectGracefully];
             }
         }];
     }
@@ -636,44 +658,68 @@
 #pragma mark - Delegation
 
 - (void)notifyDelegateDidOpen {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate webSocketDidOpen:self];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate webSocketDidOpen:strongSelf];
     }];
 }
 - (void)notifyDelegateDidReceiveMessage:(id)message {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate webSocket:self didReceiveMessage:message];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate webSocket:strongSelf didReceiveMessage:message];
     }];
 }
 - (void)notifyDelegateDidFailWithError:(NSError *)error {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate webSocket:self didFailWithError:error];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate webSocket:strongSelf didFailWithError:error];
     }];
 }
 - (void)notifyDelegateDidCloseWithCode:(NSInteger)code reason:(NSString *)reason wasClean:(BOOL)wasClean {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        [_delegate webSocket:self didCloseWithCode:code reason:reason wasClean:wasClean];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        [strongSelf->_delegate webSocket:strongSelf didCloseWithCode:code reason:reason wasClean:wasClean];
     }];
 }
 - (void)notifyDelegateDidFlushInput {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        if ([_delegate respondsToSelector:@selector(webSocketDidFlushInput:)]) {
-            [_delegate webSocketDidFlushInput:self];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if ([strongSelf->_delegate respondsToSelector:@selector(webSocketDidFlushInput:)]) {
+            [strongSelf->_delegate webSocketDidFlushInput:strongSelf];
         }
     }];
 }
 - (void)notifyDelegateDidFlushOutput {
+    __weak typeof(self) weakSelf = self;
     [self executeDelegate:^{
-        if ([_delegate respondsToSelector:@selector(webSocketDidFlushOutput:)]) {
-            [_delegate webSocketDidFlushOutput:self];
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if ([strongSelf->_delegate respondsToSelector:@selector(webSocketDidFlushOutput:)]) {
+            [strongSelf->_delegate webSocketDidFlushOutput:strongSelf];
         }
     }];
 }
 - (BOOL)askDelegateToEvaluateServerTrust:(SecTrustRef)trust {
     __block BOOL result = NO;
     [self executeDelegateAndWait:^{
-        if ([_delegate respondsToSelector:@selector(webSocket:evaluateServerTrust:)]) {
-            result = [_delegate webSocket:self evaluateServerTrust:trust];
+        if ([self->_delegate respondsToSelector:@selector(webSocket:evaluateServerTrust:)]) {
+            result = [self->_delegate webSocket:self evaluateServerTrust:trust];
         }
     }];
     return result;
