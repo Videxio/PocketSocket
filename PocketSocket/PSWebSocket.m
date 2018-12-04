@@ -432,21 +432,21 @@
         NSInteger readLength = [_inputStream read:chunkBuffer maxLength:sizeof(chunkBuffer)];
         if(readLength > 0) {
             if(!_inputBuffer.hasBytesAvailable) {
-                NSInteger consumedLength = [_driver execute:chunkBuffer maxLength:readLength];
+                NSUInteger consumedLength = [_driver execute:chunkBuffer maxLength:(NSUInteger)readLength];
                 if(consumedLength < readLength) {
-                    NSInteger offset = MAX(0, consumedLength);
-                    NSInteger remaining = readLength - offset;
-                    [_inputBuffer appendBytes:chunkBuffer + offset length:remaining];
+                    NSUInteger offset = MAX(0, consumedLength);
+                    NSInteger remaining = readLength - (NSInteger)offset;
+                    [_inputBuffer appendBytes:chunkBuffer + offset length:(NSUInteger)remaining];
                 }
             } else {
-                [_inputBuffer appendBytes:chunkBuffer length:readLength];
+                [_inputBuffer appendBytes:chunkBuffer length:(NSUInteger)readLength];
             }
         } else if(readLength < 0) {
             [self failWithError:_inputStream.streamError];
         }
 
         while(_inputBuffer.hasBytesAvailable) {
-            NSInteger readLength = [_driver execute:_inputBuffer.mutableBytes maxLength:_inputBuffer.bytesAvailable];
+            readLength = (NSInteger)[_driver execute:_inputBuffer.mutableBytes maxLength:_inputBuffer.bytesAvailable];
             if(readLength <= 0) {
                 break;
             }

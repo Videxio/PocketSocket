@@ -157,7 +157,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
         } else if(bytesRead == 0) {
             break;
         }
-        totalBytesRead += bytesRead;
+        totalBytesRead += (NSUInteger)bytesRead;
         bytes += bytesRead;
     }
     return totalBytesRead;
@@ -423,11 +423,11 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                 }
                 return 0;
             }
-            NSUInteger preBoundaryLength = boundary + 4 - bytes;
+            NSInteger preBoundaryLength = (NSInteger)(boundary + 4 - bytes);
             
             // create handshake
             CFHTTPMessageRef msg = CFHTTPMessageCreateEmpty(NULL, NO);
-            if (!CFHTTPMessageAppendBytes(msg, (const UInt8 *)bytes, preBoundaryLength)) {
+            if (!CFHTTPMessageAppendBytes(msg, (const UInt8 *)bytes, (CFIndex)preBoundaryLength)) {
                 PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Not a valid HTTP response");
                 CFRelease(msg);
                 return -1;
@@ -665,7 +665,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                     return -1;
                 }
             }
-            return frame->headerExtraLength;
+            return (NSInteger)frame->headerExtraLength;
         }
         //
         // FRAME PAYLOAD
@@ -722,10 +722,10 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             
             // validate utf-8 if necessary
             if(frame->opcode == PSWebSocketOpCodeText) {
-                uint8_t *bytes = (uint8_t *)(frame->buffer.bytes + offset);
+                uint8_t *bytesArr = (uint8_t *)(frame->buffer.bytes + offset);
                 for(NSUInteger i = 0; i < frame->buffer.length - offset; ++i) {
                     // get validation result
-                    PSWebSocketUTF8DecoderDecode(&_utf8DecoderState, &_utf8DecoderCodePoint, *(bytes + i));
+                    PSWebSocketUTF8DecoderDecode(&_utf8DecoderState, &_utf8DecoderCodePoint, *(bytesArr + i));
                     
                     // read bad code point
                     if(_utf8DecoderState == PSWebSocketUTF8DecoderReject) {
@@ -750,7 +750,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                     return -1;
                 }
             }
-            return consumeLength;
+            return (NSInteger)consumeLength;
         }
         default:
             return 0;

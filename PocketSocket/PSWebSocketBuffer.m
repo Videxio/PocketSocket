@@ -39,7 +39,7 @@
 }
 - (NSUInteger)bytesAvailable {
     if(_data.length > _offset) {
-        return _data.length - _offset;
+        return _data.length - (NSUInteger)_offset;
     }
     return 0;
 }
@@ -52,7 +52,7 @@
 - (void)compact {
     if(_offset > _compactionLength && _offset > (_data.length >> 1)) {
         _data = [NSMutableData dataWithBytes:(char *)_data.bytes + _offset
-                                      length:_data.length - _offset];
+                                      length:_data.length - (NSUInteger)_offset];
         _offset = 0;
     }
 }
