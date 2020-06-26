@@ -139,13 +139,15 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 #pragma mark - Actions
 
 - (void)start {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
-        [self connect:NO];
+        [weakSelf connect:NO];
     }];
 }
 - (void)stop {
+    __weak typeof(self) weakSelf = self;
     [self executeWork:^{
-        [self disconnectGracefully:NO];
+        [weakSelf disconnectGracefully:NO];
     }];
 }
 
@@ -678,15 +680,19 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 - (BOOL)askDelegateShouldAcceptConnection:(PSWebSocketServerConnection *)connection
                                   request: (NSURLRequest *)request
                                  response:(NSHTTPURLResponse **)outResponse {
+    __weak typeof(self) weakSelf = self;
     __block BOOL accept;
     __block NSHTTPURLResponse* response = nil;
     [self executeDelegateAndWait:^{
-        if([self->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:address:trust:response:)]) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        if([strongSelf->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:address:trust:response:)]) {
             NSData* address = PSPeerAddressOfInputStream(connection.inputStream);
             SecTrustRef trust = (SecTrustRef)CFReadStreamCopyProperty(
                                                   (__bridge CFReadStreamRef)connection.inputStream,
                                                   kCFStreamPropertySSLPeerTrust);
-            accept = [self->_delegate server:self
+            accept = [strongSelf->_delegate server:strongSelf
             acceptWebSocketWithRequest:request
                                address:address
                                  trust:trust
@@ -694,8 +700,8 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
             if(trust) {
                 CFRelease(trust);
             }
-        } else if([self->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:)]) {
-            accept = [self->_delegate server:self acceptWebSocketWithRequest:request];
+        } else if([strongSelf->_delegate respondsToSelector:@selector(server:acceptWebSocketWithRequest:)]) {
+            accept = [strongSelf->_delegate server:strongSelf acceptWebSocketWithRequest:request];
         } else {
             accept = YES;
         }
