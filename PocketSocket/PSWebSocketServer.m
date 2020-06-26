@@ -411,7 +411,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         while(connection.inputStream.hasBytesAvailable) {
             NSInteger readLength = [connection.inputStream read:chunkBuffer maxLength:sizeof(chunkBuffer)];
             if(readLength > 0) {
-                [connection.inputBuffer appendBytes:chunkBuffer length:readLength];
+                [connection.inputBuffer appendBytes:chunkBuffer length:(NSUInteger)readLength];
             } else if(readLength < 0) {
                 [self disconnectConnection:connection];
             }
@@ -431,10 +431,10 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
                 }
                 continue;
             }
-            NSUInteger boundaryOffset = boundary + 4 - connection.inputBuffer.bytes;
+            NSInteger boundaryOffset = (NSInteger)(boundary + 4 - connection.inputBuffer.bytes);
             
             CFHTTPMessageRef msg = CFHTTPMessageCreateEmpty(kCFAllocatorDefault, YES);
-            CFHTTPMessageAppendBytes(msg, connection.inputBuffer.bytes, connection.inputBuffer.bytesAvailable);
+            CFHTTPMessageAppendBytes(msg, connection.inputBuffer.bytes, (CFIndex)connection.inputBuffer.bytesAvailable);
             if(!CFHTTPMessageIsHeaderComplete(msg)) {
                 [self disconnectConnection:connection];
                 CFRelease(msg);
