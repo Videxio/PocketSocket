@@ -146,7 +146,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 }
 - (void)stop {
     __weak typeof(self) weakSelf = self;
-    [self executeWork:^{
+    [self executeWorkAndWait:^{
         [weakSelf disconnectGracefully:NO];
     }];
 }
@@ -211,10 +211,8 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
     [self pumpOutput];
     
     // disconnect
-    [self executeWork:^{
-        [self disconnect:silent];
-    }];
-    
+    [self disconnect:silent];
+
     _running = NO;
 }
 - (void)disconnect:(BOOL)silent {
@@ -732,9 +730,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 #pragma mark - Dealloc
 
 - (void)dealloc {
-    [self executeWorkAndWait:^{
-        [self disconnect:YES];
-    }];
+    NSAssert(!_running, @"Call 'stop' method before destroying the object.");
 }
 
 @end
