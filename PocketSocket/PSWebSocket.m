@@ -172,9 +172,6 @@
         case NSURLNetworkServiceTypeDefault:
         case NSURLNetworkServiceTypeCallSignaling:
             break;
-        case NSURLNetworkServiceTypeVoIP:
-            networkServiceType = NSStreamNetworkServiceTypeVoIP;
-            break;
         case NSURLNetworkServiceTypeBackground:
             networkServiceType = NSStreamNetworkServiceTypeBackground;
             break;
