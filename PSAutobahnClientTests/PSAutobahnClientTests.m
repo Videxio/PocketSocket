@@ -19,7 +19,6 @@
 }
 
 @property (nonatomic, strong) NSURL *autobahnURL;
-@property (nonatomic, strong) NSNumber *cachedTestCaseCount;
 @property (nonatomic, strong) NSString *desc;
 
 @end
@@ -43,23 +42,13 @@
     }
     return @"PocketSocket Autobahn Test Harness";
 }
-- (BOOL)isEmpty {
-    return NO;
-}
-- (NSUInteger)testCaseCount {
-    if(self.invocation) {
-        return [super testCaseCount];
-    }
-    if(!self.cachedTestCaseCount) {
-        self.cachedTestCaseCount = @([self autobahnFetchTestCaseCount]);
-    }
-    return self.cachedTestCaseCount.unsignedIntegerValue;
-}
 
 #pragma mark - Initialization
 
 + (id)defaultTestSuite {
-    return [[[self class] alloc] init];
+    XCTestSuite *suite = [XCTestSuite testSuiteForTestCaseClass:self];
+    [self collectTestCases:suite];
+    return suite;
 }
 - (id)initWithInvocation:(NSInvocation *)invocation desc:(NSString *)desc {
     self.desc = desc;
@@ -70,32 +59,28 @@
 
 #pragma mark - Testing
 
-- (void)performTest:(XCTestRun *)run {
-    if(self.invocation) {
-        NSLog(@"[PSAutobahnClientTests][EXECUTE]: %@", self.desc);
-        [super performTest:run];
-        return;
-    }
-    [run start];
-    for(NSUInteger i = 1; i <= run.test.testCaseCount; ++i) {
++ (void)collectTestCases:(XCTestSuite *)suite {
+    PSAutobahnTests *testsBootstrap = [PSAutobahnTests new];
+    NSUInteger testCaseCount = [testsBootstrap autobahnFetchTestCaseCount];
+    for (NSUInteger i = 1; i <= testCaseCount; ++i) {
         SEL selector = @selector(performTestNumber:);
-        NSMethodSignature *signature = [self methodSignatureForSelector:selector];
+        NSMethodSignature *signature = [testsBootstrap methodSignatureForSelector:selector];
         NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
         invocation.selector = selector;
-        invocation.target = self;
         [invocation setArgument:&i atIndex:2];
         
-        NSDictionary *info = [self autobahnFetchTestCaseInfoForNumber:i];
+        NSDictionary *info = [testsBootstrap autobahnFetchTestCaseInfoForNumber:i];
         NSString *desc = [NSString stringWithFormat:@"%@ – %@", info[@"id"], info[@"description"]];
         
         XCTestCase *testCase = [[[self class] alloc] initWithInvocation:invocation desc:desc];
-        XCTestCaseRun *testRun = [[XCTestCaseRun alloc] initWithTest:testCase];
-        [testCase performTest:testRun];
+        invocation.target = testCase;
+        [suite addTest:testCase];
     }
-    [self autobahnUpdateReports];
-    [run stop];
+    // TODO: fix
+    //[self autobahnUpdateReports];
 }
 - (void)performTestNumber:(NSUInteger)caseNumber {
+    NSLog(@"[PSAutobahnClientTests][EXECUTE]: %@", self.desc);
     NSDictionary *results = [self autobahnPerformTestCaseNumber:caseNumber];
     XCTAssertEqualObjects(@"OK", results[@"behavior"], @"Test behavior should have been ok, instead got: %@", results[@"behavior"]);
 }
