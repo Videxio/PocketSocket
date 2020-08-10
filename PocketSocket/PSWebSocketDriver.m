@@ -19,9 +19,6 @@
 #import "PSWebSocketBuffer.h"
 #import "PSWebSocketUTF8Decoder.h"
 #import "PSWebSocketInternal.h"
-#if TARGET_OS_IPHONE
-#import <Endian.h>
-#endif
 #import <CommonCrypto/CommonCrypto.h>
 
 @interface PSWebSocketFrame : NSObject {
@@ -173,7 +170,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     NSUInteger reasonMaxLength = [reason maximumLengthOfBytesUsingEncoding:NSUTF8StringEncoding];
     NSMutableData *data = [NSMutableData dataWithLength:sizeof(uint16_t) + reasonMaxLength];
     uint8_t *dataBytes = (uint8_t *)data.mutableBytes;
-    ((uint16_t *)dataBytes)[0] = EndianU16_BtoN(code);
+    ((uint16_t *)dataBytes)[0] = CFSwapInt16HostToBig((uint16_t)code);
     if(reason) {
         NSRange remainingRange = NSMakeRange(0, 0);
         NSUInteger usedLength = 0;
@@ -365,11 +362,11 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
         headerBytes[1] |= [payload length];
     } else if([payload length] <= UINT16_MAX) {
         headerBytes[1] |= 126;
-        uint16_t len = EndianU16_BtoN((uint16_t)[payload length]);
+        uint16_t len = CFSwapInt16HostToBig((uint16_t)[payload length]);
         [header appendBytes:&len length:sizeof(len)];
     } else {
         headerBytes[1] |= 127;
-        uint64_t len = EndianU64_BtoN((uint64_t)[payload length]);
+        uint64_t len = CFSwapInt64HostToBig((uint64_t)[payload length]);
         [header appendBytes:&len length:sizeof(len)];
     }
     
@@ -645,9 +642,9 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             
             uint64_t payloadLength = frame->payloadLength;
             if(payloadLength == 126) {
-                payloadLength = EndianU16_BtoN(*(uint16_t *)bytes);
+                payloadLength = CFSwapInt16BigToHost(*(uint16_t *)bytes);
             } else if(payloadLength == 127) {
-                payloadLength = EndianU64_BtoN(*(uint64_t *)bytes);
+                payloadLength = CFSwapInt64BigToHost(*(uint64_t *)bytes);
             }
             frame->payloadLength = (NSUInteger)payloadLength;
             frame->payloadRemainingLength = (NSUInteger)payloadLength;
@@ -807,7 +804,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             if(frame->buffer.length >= 2) {
                 uint16_t closeCode = 0;
                 [frame->buffer getBytes:&closeCode length:sizeof(closeCode)];
-                closeCode = EndianU16_BtoN(closeCode);
+                closeCode = CFSwapInt16BigToHost(closeCode);
                 if(!PSWebSocketCloseCodeIsValid(closeCode)) {
                     PSWebSocketSetOutError(outError, PSWebSocketStatusCodeProtocolError, @"Invalid close code");
                     return NO;
