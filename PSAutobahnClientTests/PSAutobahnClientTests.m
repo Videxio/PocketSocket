@@ -125,7 +125,7 @@
     [self runOperation:op timeout:60.0];
     XCTAssertNil(op.error, @"Should have successfully returned the case info. Instead got error %@", op.error);
     NSDictionary *info = [NSJSONSerialization JSONObjectWithData:[op.message dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-    XCTAssertNil(info, @"Should have successfully deserialized message into dictionary.");
+    XCTAssertNotNil(info, @"Should have successfully deserialized message into dictionary.");
     return info;
 }
 - (NSDictionary *)autobahnFetchTestCaseStatusForNumber:(NSUInteger)number {
@@ -135,7 +135,7 @@
     [self runOperation:op timeout:60.0];
     XCTAssertNil(op.error, @"Should have successfully returned the case status. Instead got error %@", op.error);
     NSDictionary *info = [NSJSONSerialization JSONObjectWithData:[op.message dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-    XCTAssertNil(info, @"Should have successfully deserialized message into dictionary.");
+    XCTAssertNotNil(info, @"Should have successfully deserialized message into dictionary.");
     return info;
 }
 - (void)autobahnUpdateReports {
