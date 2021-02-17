@@ -211,7 +211,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     
     NSURL *URL = _request.URL;
     BOOL secure = ([URL.scheme isEqualToString:@"https"] || [URL.scheme isEqualToString:@"wss"]);
-    NSString *host = (URL.port) ? [NSString stringWithFormat:@"%@:%@", URL.host, URL.port] : URL.host;
+    NSString *host = (URL.port != nil) ? [NSString stringWithFormat:@"%@:%@", URL.host, URL.port] : URL.host;
     NSString *origin = [NSString stringWithFormat:@"http%@://%@", (secure) ? @"s" : @"", host];
     
     CFHTTPMessageRef msg = CFHTTPMessageCreateRequest(kCFAllocatorDefault, CFSTR("GET"), (__bridge CFURLRef)URL, kCFHTTPVersion1_1);
